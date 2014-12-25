@@ -1,9 +1,9 @@
-package ecig.app;
+package ecig.app.RatioPie;
 
 /**
  * Created by kssworld93 on 12/24/14.
  */
-public class PieChartData {
+public class Slice {
     public float fPercentage;
     public String strTitle;
 
@@ -12,7 +12,7 @@ public class PieChartData {
      * @param fPercentage value in pie chart
      * @param strTitle the legend title
      */
-    public PieChartData(float fPercentage,String strTitle) {
+    public Slice(float fPercentage, String strTitle) {
         this.fPercentage = fPercentage;
         this.strTitle    = strTitle;
     }

@@ -2,12 +2,13 @@ package ecig.app;
 
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.Toast;
 
 import java.util.ArrayList;
+
+import ecig.app.RatioPie.RatioPieView;
+import ecig.app.RatioPie.Slice;
 
 
 public class Intro extends ActionBarActivity {
@@ -24,31 +25,13 @@ public class Intro extends ActionBarActivity {
 
     private void initPie() {
         pie = (RatioPieView) findViewById(R.id.ratiopieview);
-        ArrayList<PieChartData> alPercentage = new ArrayList<PieChartData>();
-        alPercentage.add(new PieChartData(25.0f, "1"));
-        alPercentage.add(new PieChartData(25.0f, "2"));
-        alPercentage.add(new PieChartData(20.0f, "3"));
-        alPercentage.add(new PieChartData(10.0f, "4"));
-        alPercentage.add(new PieChartData(10.0f, "5"));
-        alPercentage.add(new PieChartData(10.0f, "6"));
-
-        try {
-            // setting data
-            pie.setAdapter(alPercentage);
-
-            /*
-            // setting a listener
-            pie.setOnSelectedListener(new OnSelectedLisenter() {
-                @Override
-                public void onSelected(int iSelectedIndex) {
-                    // Toast.makeText(ChartView.this, "Select index:" + iSelectedIndex, Toast.LENGTH_SHORT).show();
-                }
-            });*/
-        } catch (Exception e) {
-            if (e.getMessage().equals(RatioPieView.ERROR_NOT_EQUAL_TO_100)){
-                throw new RuntimeException("yo");
-            }
-        }
+        ArrayList<Slice> alPercentage = new ArrayList<Slice>();
+        alPercentage.add(new Slice(25.0f, "1"));
+        alPercentage.add(new Slice(25.0f, "2"));
+        alPercentage.add(new Slice(20.0f, "3"));
+        alPercentage.add(new Slice(10.0f, "4"));
+        alPercentage.add(new Slice(10.0f, "5"));
+        alPercentage.add(new Slice(10.0f, "6"));
 
     }
 
