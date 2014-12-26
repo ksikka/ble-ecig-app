@@ -4,6 +4,8 @@ import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TabHost;
+import android.widget.TextView;
 
 import java.util.ArrayList;
 
@@ -25,14 +27,19 @@ public class Intro extends ActionBarActivity {
 
     private void initPie() {
         pie = (RatioPieView) findViewById(R.id.ratiopieview);
-        ArrayList<Slice> alPercentage = new ArrayList<Slice>();
-        alPercentage.add(new Slice(25.0f, "1"));
-        alPercentage.add(new Slice(25.0f, "2"));
-        alPercentage.add(new Slice(20.0f, "3"));
-        alPercentage.add(new Slice(10.0f, "4"));
-        alPercentage.add(new Slice(10.0f, "5"));
-        alPercentage.add(new Slice(10.0f, "6"));
+        pie.setTextView((TextView) findViewById(R.id.textView));
 
+
+        TabHost tabHost = (TabHost)findViewById(R.id.tabHost);
+        tabHost.setup();
+        TabHost.TabSpec tab1 = tabHost.newTabSpec("tab1");
+        TabHost.TabSpec tab2 = tabHost.newTabSpec("tab2");
+        tab1.setIndicator("Numeric");
+        tab2.setIndicator("Graphical");
+        tab1.setContent(R.id.tab1);
+        tab2.setContent(R.id.tab2);
+        tabHost.addTab(tab1);
+        tabHost.addTab(tab2);
     }
 
 

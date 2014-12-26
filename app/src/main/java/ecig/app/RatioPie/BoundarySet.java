@@ -1,6 +1,5 @@
 package ecig.app.RatioPie;
 
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 
@@ -9,8 +8,8 @@ import java.util.ArrayList;
 /**
  * Created by kssworld93 on 12/24/14.
  *
- * If you have 1 slice, you have 0 boundaries.
- * If you have n > 1 slices, you have n boundaries.
+ * If you have 1 slice, you have 0 slices.
+ * If you have n > 1 slices, you have n slices.
  */
 public class BoundarySet {
     static int D360 = 360;
@@ -46,14 +45,14 @@ public class BoundarySet {
 
     }
 
-    protected final ArrayList<Slice> boundaries = new ArrayList<Slice>();
+    protected final ArrayList<Slice> slices = new ArrayList<Slice>();
     public final int[] PIE_COLORS;
     int nextColorI; // helps us choose the next color
 
 
     public BoundarySet(float[] percents, int[] PIE_COLORS) {
-        if(boundaries.size() != 0) // just testing my knowledge of final instance variables.
-            throw new RuntimeException("wt: " + boundaries.size());
+        if(slices.size() != 0) // just testing my knowledge of final instance variables.
+            throw new RuntimeException("wt: " + slices.size());
         this.PIE_COLORS = PIE_COLORS;
         fromPercents(percents);
     }
@@ -72,7 +71,7 @@ public class BoundarySet {
             float degrees = pcts[i] * D360;
             Slice b = new Slice(cumDegrees, degrees, nextColor());
             cumDegrees += degrees;
-            boundaries.add(b);
+            slices.add(b);
 
         }
     }
