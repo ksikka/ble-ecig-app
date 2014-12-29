@@ -40,134 +40,56 @@
                     android:orientation="vertical">
 
                     <TableLayout
-                        android:layout_width="fill_parent"
-                        android:layout_height="fill_parent"
-                        android:stretchColumns="0,1">
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:stretchColumns="0,1"
+                        android:layout_marginLeft="15dp"
+                        android:layout_marginRight="15dp"
+                        android:id="@+id/numericalTable">
                         <TableRow
-                            android:layout_width="fill_parent"
-                            android:layout_height="fill_parent">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?android:attr/textAppearanceLarge"
+                            style="@style/cartridgeRow">
+                            <TextView style="@style/cartridgeHeader"
                                 android:text="Cartridge" />
                             <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?android:attr/textAppearanceLarge"
+                                style="@style/cartridgeHeader"
                                 android:text="Percent" />
-
                         </TableRow>
                         <TableRow
-                            android:layout_width="fill_parent"
-                            android:layout_height="fill_parent">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?android:attr/textAppearanceMedium"
-                                android:text="C1"
-                                android:id="@+id/labelc1" />
-
-                            <EditText
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:id="@+id/editc1" />
+                            style="@style/cartridgeRow">
+                            <TextView style="@style/cartridgeLabel"/>
+                            <EditText style="@style/cartridgeValue" />
                         </TableRow>
-
                         <TableRow
-                            android:layout_width="fill_parent"
-                            android:layout_height="fill_parent">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?android:attr/textAppearanceMedium"
-                                android:text="C2"
-                                android:id="@+id/labelc2" />
-
-                            <EditText
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:id="@+id/editc2" />
+                            style="@style/cartridgeRow">
+                            <TextView style="@style/cartridgeLabel"/>
+                            <EditText style="@style/cartridgeValue" />
                         </TableRow>
-
                         <TableRow
-                            android:layout_width="fill_parent"
-                            android:layout_height="fill_parent">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?android:attr/textAppearanceMedium"
-                                android:text="C3"
-                                android:id="@+id/labelc3" />
-
-                            <EditText
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:id="@+id/editc3" />
+                            style="@style/cartridgeRow">
+                            <TextView style="@style/cartridgeLabel"/>
+                            <EditText style="@style/cartridgeValue" />
                         </TableRow>
-
                         <TableRow
-                            android:layout_width="fill_parent"
-                            android:layout_height="fill_parent">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?android:attr/textAppearanceMedium"
-                                android:text="C4"
-                                android:id="@+id/labelc4" />
-
-                            <EditText
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:id="@+id/editc4" />
+                            style="@style/cartridgeRow">
+                            <TextView style="@style/cartridgeLabel"/>
+                            <EditText style="@style/cartridgeValue" />
                         </TableRow>
-
                         <TableRow
-                            android:layout_width="fill_parent"
-                            android:layout_height="fill_parent">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?android:attr/textAppearanceMedium"
-                                android:text="C5"
-                                android:id="@+id/labelc5" />
-
-                            <EditText
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:id="@+id/editc5" />
+                            style="@style/cartridgeRow">
+                            <TextView style="@style/cartridgeLabel"/>
+                            <EditText style="@style/cartridgeValue" />
                         </TableRow>
-
                         <TableRow
-                            android:layout_width="fill_parent"
-                            android:layout_height="fill_parent">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?android:attr/textAppearanceMedium"
-                                android:text="C6"
-                                android:id="@+id/labelc6" />
-
-                            <EditText
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:id="@+id/editc6" />
+                            style="@style/cartridgeRow">
+                            <TextView style="@style/cartridgeLabel"/>
+                            <EditText style="@style/cartridgeValue" />
                         </TableRow>
-
                     </TableLayout>
+                    <Button
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Edit"
+                        android:id="@+id/editDoneButton" />
                 </LinearLayout>
 
                 <LinearLayout
