@@ -17,6 +17,7 @@ import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
+import java.text.ParseException;
 import java.util.ArrayList;
 
 import ecig.app.RatioPie.RatioPieView;
@@ -158,10 +159,13 @@ public class Intro extends ActionBarActivity {
             TextView labelView = (TextView) row.getChildAt(0);
             TextView dataView = (TextView) row.getChildAt(1);
 
-            newData[dataI] = new CData(
-                    labelView.getText().toString(),
-                    Integer.parseInt(dataView.getText().toString())
-            );
+            int dataValue;
+            try {
+                dataValue = Integer.parseInt(dataView.getText().toString());
+            } catch (NumberFormatException e) {
+                dataValue = 0;
+            }
+            newData[dataI] = new CData(labelView.getText().toString(), dataValue);
         }
         return newData;
     }
@@ -203,10 +207,15 @@ public class Intro extends ActionBarActivity {
             TextView labelView = (TextView) row.getChildAt(0);
             EditText dataView = (EditText) row.getChildAt(1);
 
+            // undo any error left over
+            dataView.setError(null);
+
+
             dataView.setEnabled(false);
 
             labelView.setText(rowData.label);
             dataView.setText(rowData.valueString());
+            dataView.clearFocus();
         }
 
         editState = false;
