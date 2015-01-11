@@ -1,14 +1,21 @@
 package ecig.app;
 
 import android.app.ActionBar;
+import android.bluetooth.BluetoothManager;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.IBinder;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.text.InputType;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -22,28 +29,76 @@ import java.util.ArrayList;
 
 import ecig.app.RatioPie.RatioPieView;
 import ecig.app.RatioPie.Slice;
+import ecig.app.ble.BluetoothLeService;
 
 
 public class Intro extends ActionBarActivity {
+    public final static String TAG = "ecig.app.Intro";
+
+    TextView textView;
+    Button connectingButton;
+
+
+    Intro mThis;
+
 
     RatioPieView pie;
     TabHost tabHost;
     TableLayout cartTable;
     Button editDoneButton;
+    Button reconfButton;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_intro);
+        initEmbreAgent();
+        initConnectingFragment();
         initPie();
         initTabs();
         initNumericalTable();
+
+        mThis = this;
     }
+
+
+
+    private void initConnectingFragment() {
+        textView = (TextView) findViewById(R.id.textView);
+        connectingButton = (Button) findViewById(R.id.connectingButton);
+
+    }
+
+
+    /* Connecting Fragment:
+    *    Note: This is not a real android fragment, but it is a fragment of functionality.
+    *
+    *    state = disconnected | connected | connecting
+     *   when connected, EmbreAgent is not null.
+     *
+    *
+    * */
+
+
+
+    private void initEmbreAgent() {
+        EmbreAgent embre = new EmbreAgent();
+        embre.initialize(this);
+        embre.scanForDevice(new EmbreAgent.EmbreCB() {
+            public void call() {
+                // hide loading wheel
+            }
+        });
+        // show loading wheel
+    }
+
+    /* </connecting fragment> */
+
 
     private void initPie() {
         pie = (RatioPieView) findViewById(R.id.ratiopieview);
-        pie.setTextView((TextView) findViewById(R.id.textView));
+        pie.setTextView(textView);
 
     }
 
@@ -144,6 +199,15 @@ public class Intro extends ActionBarActivity {
             }
         });
 
+        reconfButton = (Button) findViewById(R.id.reconfButton);
+        reconfButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Reconfigure ecig or display ecig not connected.
+                if (true) {}
+            }
+        });
+
         updateNumericalTable();
 
     }
@@ -171,7 +235,10 @@ public class Intro extends ActionBarActivity {
     }
 
     void editNumTable() {
+        reconfButton.setEnabled(false);
         editDoneButton.setText("Done");
+
+
         for (int rowI = 1; rowI < 7; rowI ++) {
             int dataI = rowI - 1;
             TableRow row = (TableRow) cartTable.getChildAt(rowI);
@@ -181,13 +248,17 @@ public class Intro extends ActionBarActivity {
 
             CData rowData = data[dataI];
             EditText editText = (EditText) row.getChildAt(1);
+        
             editText.setText(Integer.toString(rowData.value));
+            editText.setImeActionLabel("Done", EditorInfo.IME_ACTION_DONE);
             editText.setEnabled(true);
+
         }
         editState = true;
     }
 
     private void updateNumericalTable() {
+        reconfButton.setEnabled(true);
         editDoneButton.setText("Edit");
         // One header, 6 data rows.
         if (cartTable.getChildCount() != 7) {

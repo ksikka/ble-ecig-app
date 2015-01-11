@@ -12,6 +12,14 @@
         android:autoText="false"
         android:editable="false" />
 
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="New Button"
+        android:id="@+id/connectingButton"
+        android:layout_toRightOf="@+id/textView" />
+
     <TabHost
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
@@ -38,6 +46,24 @@
                     android:layout_width="fill_parent"
                     android:layout_height="fill_parent"
                     android:orientation="vertical">
+
+                    <LinearLayout
+                        android:orientation="horizontal"
+                        android:layout_width="fill_parent"
+                        android:layout_height="wrap_content">
+
+                        <Button
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Edit"
+                            android:id="@+id/editDoneButton" />
+
+                        <Button
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Reconfigure"
+                            android:id="@+id/reconfButton" />
+                    </LinearLayout>
 
                     <TableLayout
                         android:layout_width="wrap_content"
@@ -85,11 +111,6 @@
                             <EditText style="@style/cartridgeValue" />
                         </TableRow>
                     </TableLayout>
-                    <Button
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Edit"
-                        android:id="@+id/editDoneButton" />
                 </LinearLayout>
 
                 <LinearLayout
