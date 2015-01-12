@@ -14,7 +14,8 @@
         android:theme="@style/AppTheme" >
         <activity
             android:name=".Intro"
-            android:label="@string/title_activity_intro" >
+            android:label="@string/title_activity_intro"
+            android:screenOrientation="portrait">
         </activity>
         <activity
             android:name=".FirstIntro"

@@ -56,6 +56,15 @@ public class Intro extends ActionBarActivity {
         initNumericalTable();
     }
 
+    // I did this to prevent multiple embreagents from being created
+    // during screen rotation.
+    // but now I just prevented screen rotation so this isn't really utilized.
+    @Override
+    protected void onDestroy() {
+        embre.destroy();
+        super.onDestroy();
+    }
+
 
 
     private void initConnectingFragment() {
@@ -129,9 +138,6 @@ public class Intro extends ActionBarActivity {
        Done button validates the percentage numbers and makes edit -> view
        Edit button makes view -> edit
        */
-
-
-
     private void initNumericalTable() {
         cartTable = (TableLayout) findViewById(R.id.numericalTable);
 

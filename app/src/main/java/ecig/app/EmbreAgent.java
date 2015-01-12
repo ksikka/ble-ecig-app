@@ -24,11 +24,19 @@ import ecig.app.ble.BluetoothLeService;
  *
  */
 public class EmbreAgent {
-    BluetoothManager mBluetoothManager;
-    BluetoothAdapter mBluetoothAdapter;
+
     Context context;
 
+    BluetoothManager mBluetoothManager;
+    BluetoothAdapter mBluetoothAdapter;
+    BluetoothGatt mGatt;
+
+
     boolean connected = false;
+    // BluetoothProfile.STATE_CONNECTED or BluetoothProfile.STATE_DISCONNECTED;
+    int state = BluetoothProfile.STATE_DISCONNECTED;
+    private boolean mScanning = false;
+
 
 
     // This is the accelerometer service UUID of the SensorTag.
@@ -103,10 +111,6 @@ public class EmbreAgent {
         }
     }
 
-    // BluetoothProfile.STATE_CONNECTED or BluetoothProfile.STATE_DISCONNECTED;
-    int state = BluetoothProfile.STATE_DISCONNECTED;
-    private boolean mScanning = false;
-    BluetoothGatt mGatt;
 
     private BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
         // https://developer.android.com/reference/android/bluetooth/BluetoothGattCallback.html#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)
@@ -129,13 +133,14 @@ public class EmbreAgent {
 
 
     // Device scan callback.
-    private BluetoothAdapter.LeScanCallback mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
+    private final BluetoothAdapter.LeScanCallback mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
         @Override
         public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
             String name = device.getName();
             if (name != null) {
                 String logoutput = name + " " + device.toString();
                 Log.i(TAG, logoutput);
+
                 if (logoutput.equals("SensorTag 34:B1:F7:D1:35:03")) {
                     // stop scanning
                     scanForDevice(null);
@@ -160,19 +165,29 @@ public class EmbreAgent {
             // TODO handle error in case scan doesn't start successfully
             mBluetoothAdapter.startLeScan(mLeScanCallback);
         } else {
-            if (!mScanning) {
-                throw new RuntimeException("Attempt to stop scanning while not scanning");
+            if (mScanning) {
+                mScanning = false;
+                mBluetoothAdapter.stopLeScan(mLeScanCallback);
+                stopScanCB.call(new String[] {"FOUND"});
             }
-            mScanning = false;
-            mBluetoothAdapter.stopLeScan(mLeScanCallback);
-            stopScanCB.call(new String[] {"FOUND"});
-
         }
 
     }
 
     public boolean writeData(CData[] data) {
         return false;
+    }
+
+    public void destroy() {
+
+        if (mScanning) {
+            mBluetoothAdapter.stopLeScan(mLeScanCallback);
+            Log.i(TAG, "Cleaning up bluetooth: stop scan");
+        }
+        if (this.connected) {
+            mGatt.disconnect();
+            Log.i(TAG, "Cleaning up bluetooth: disconnect");
+        }
     }
 }
 
