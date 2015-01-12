@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">App</string>
-    <string name="title_activity_intro">Intro</string>
+    <string name="app_name">Embre</string>
+    <string name="title_activity_intro">My Embre</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
-    <string name="dummy_button">Continue</string>
-    <string name="dummy_content">My E-Cig</string>
+    <string name="dummy_content">Embre</string>
 
 </resources>

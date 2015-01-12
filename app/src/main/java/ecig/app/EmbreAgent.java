@@ -1,18 +1,13 @@
 package ecig.app;
 
-import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
-import android.os.IBinder;
-import android.os.Handler;
 import android.util.Log;
 
 import ecig.app.ble.BluetoothLeService;
@@ -32,29 +27,65 @@ public class EmbreAgent {
     BluetoothManager mBluetoothManager;
     BluetoothAdapter mBluetoothAdapter;
     Context context;
-    BluetoothLeService mBluetoothLeService;
+
+    boolean connected = false;
 
 
     // This is the accelerometer service UUID of the SensorTag.
     static final String SERVICE_UUID = "F000AA10-0451-4000-B000-000000000000";
 
     interface EmbreCB {
-        public void call();
+        public void call(String[] args);
     }
 
-    enum ConnState { DISCONNECTED, CONNECTED, CONNECTING }
-    ConnState connState;
-
     public final static String TAG = "ecig.app.EmbreAgent";
+
+    static class CDataError {
+        String message;
+        int index;
+        public CDataError(String message, int index) {
+            this.message = message; this.index = index;
+        }
+    }
+
+    static class CData {
+        String label;
+        int value;
+
+        public CData(String label, int value) {
+            this.label = label; this.value = value;
+        }
+        public String valueString() {
+            String dataValue = value == 0 ? "-" :Integer.toString(value) + "%";
+            return dataValue;
+        }
+        public static CDataError validate(CData[] cDatas) {
+            int sum = 0;
+            for (int i = 0; i < cDatas.length; i ++) {
+                if (cDatas[i].value < 0) {
+                    return new CDataError("Percent can't be negative", i);
+                }
+                sum += cDatas[i].value;
+                if (sum > 100) {
+                    return new CDataError("This adds up to over 100%\nPlease fix and try again.", i);
+                }
+
+            }
+            if (sum < 100) {
+                return new CDataError("This doesn't add up to 100%.\nPlease fix and try again.", cDatas.length - 1);
+            }
+
+            return null;
+        }
+
+    }
 
     public void initialize(Context context) {
         this.context = context;
         initBluetoothAdapter();
-        //initConnectionService();
     }
 
     private void initBluetoothAdapter() {
-
         // Initializes a Bluetooth adapter. For API level 18 and above, get a
         // reference to BluetoothAdapter through BluetoothManager.
         mBluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
@@ -84,9 +115,13 @@ public class EmbreAgent {
             super.onConnectionStateChange(gatt, status, newState);
             // If connected, do callback
             if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
+                connected = true;
                 Log.i(TAG, "Success.");
+                stopScanCB.call(new String[] {"CONNECTED"});
             } else {
+                connected = false;
                 Log.i(TAG, "Failure.");
+                stopScanCB.call(new String[] {"DISCONNECTED"});
             }
             state = newState;
         }
@@ -130,11 +165,14 @@ public class EmbreAgent {
             }
             mScanning = false;
             mBluetoothAdapter.stopLeScan(mLeScanCallback);
-            stopScanCB.call();
-            stopScanCB = null;
+            stopScanCB.call(new String[] {"FOUND"});
 
         }
 
+    }
+
+    public boolean writeData(CData[] data) {
+        return false;
     }
 }
 

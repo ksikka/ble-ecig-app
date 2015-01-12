@@ -1,35 +1,22 @@
 package ecig.app;
 
-import android.app.ActionBar;
-import android.bluetooth.BluetoothManager;
-import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.os.IBinder;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.text.InputType;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.TabHost;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
-
-import java.text.ParseException;
-import java.util.ArrayList;
-
+import android.widget.Toast;
 import ecig.app.RatioPie.RatioPieView;
-import ecig.app.RatioPie.Slice;
-import ecig.app.ble.BluetoothLeService;
+import ecig.app.EmbreAgent.CData;
+import ecig.app.EmbreAgent.CDataError;
 
 
 public class Intro extends ActionBarActivity {
@@ -38,9 +25,7 @@ public class Intro extends ActionBarActivity {
     TextView textView;
     Button connectingButton;
 
-
-    Intro mThis;
-
+    EmbreAgent embre;
 
     RatioPieView pie;
     TabHost tabHost;
@@ -48,6 +33,16 @@ public class Intro extends ActionBarActivity {
     Button editDoneButton;
     Button reconfButton;
 
+    boolean editState = false;
+
+    CData[] data = new CData[]{
+            new CData("C1",100),
+            new CData("C2", 0),
+            new CData("C3", 0),
+            new CData("C4", 0),
+            new CData("C5", 0),
+            new CData("C6", 0)
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,11 +50,10 @@ public class Intro extends ActionBarActivity {
         setContentView(R.layout.activity_intro);
         initEmbreAgent();
         initConnectingFragment();
-        initPie();
-        initTabs();
+        // TODO fix the pie.
+        //initPie();
+        //initTabs();
         initNumericalTable();
-
-        mThis = this;
     }
 
 
@@ -70,32 +64,45 @@ public class Intro extends ActionBarActivity {
 
     }
 
-
-    /* Connecting Fragment:
-    *    Note: This is not a real android fragment, but it is a fragment of functionality.
-    *
-    *    state = disconnected | connected | connecting
-     *   when connected, EmbreAgent is not null.
-     *
-    *
-    * */
-
-
-
     private void initEmbreAgent() {
-        EmbreAgent embre = new EmbreAgent();
+        embre = new EmbreAgent();
         embre.initialize(this);
+        final Context cxt = getApplicationContext();
         embre.scanForDevice(new EmbreAgent.EmbreCB() {
-            public void call() {
-                // hide loading wheel
+            public void call(String[] args) {
+                String status = args[0];
+                if (status.equals("FOUND")) {
+                    Intro.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(cxt, "Found", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else if (status.equals("CONNECTED")) {
+                    Intro.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(cxt, "Connected", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else if (status.equals("DISCONNECTED")) {
+                    Intro.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(cxt, "Disconnected", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+
             }
         });
         // show loading wheel
+        Toast.makeText(cxt, "Scanning", Toast.LENGTH_SHORT).show();
     }
 
     /* </connecting fragment> */
 
-
+    /*
     private void initPie() {
         pie = (RatioPieView) findViewById(R.id.ratiopieview);
         pie.setTextView(textView);
@@ -113,7 +120,7 @@ public class Intro extends ActionBarActivity {
         tab2.setContent(R.id.tab2);
         tabHost.addTab(tab1);
         tabHost.addTab(tab2);
-    }
+    }*/
 
     /* Numerical table:
        Edit or View state
@@ -122,56 +129,8 @@ public class Intro extends ActionBarActivity {
        Done button validates the percentage numbers and makes edit -> view
        Edit button makes view -> edit
        */
-    static class CDataError {
-        String message;
-        int index;
-        public CDataError(String message, int index) {
-            this.message = message; this.index = index;
-        }
-    }
 
-    static class CData {
-        String label;
-        int value;
 
-        public CData(String label, int value) {
-            this.label = label; this.value = value;
-        }
-        public String valueString() {
-            String dataValue = value == 0 ? "-" :Integer.toString(value) + "%";
-            return dataValue;
-        }
-        public static CDataError validate(CData[] cDatas) {
-            int sum = 0;
-            for (int i = 0; i < cDatas.length; i ++) {
-                if (cDatas[i].value < 0) {
-                    return new CDataError("Percent can't be negative", i);
-                }
-                sum += cDatas[i].value;
-                if (sum > 100) {
-                    return new CDataError("This adds up to over 100%\nPlease fix and try again.", i);
-                }
-
-            }
-            if (sum < 100) {
-                return new CDataError("This doesn't add up to 100%.\nPlease fix and try again.", cDatas.length - 1);
-            }
-
-            return null;
-        }
-
-    }
-
-    boolean editState = false;
-
-    CData[] data = new CData[]{
-            new CData("C1",100),
-            new CData("C2", 0),
-            new CData("C3", 0),
-            new CData("C4", 0),
-            new CData("C5", 0),
-            new CData("C6", 0)
-    };
 
     private void initNumericalTable() {
         cartTable = (TableLayout) findViewById(R.id.numericalTable);
@@ -204,7 +163,11 @@ public class Intro extends ActionBarActivity {
             @Override
             public void onClick(View v) {
                 // Reconfigure ecig or display ecig not connected.
-                if (true) {}
+                if (embre.connected) {
+                    embre.writeData(Intro.this.data);
+                } else {
+                    // TODO make toast
+                }
             }
         });
 
@@ -248,7 +211,7 @@ public class Intro extends ActionBarActivity {
 
             CData rowData = data[dataI];
             EditText editText = (EditText) row.getChildAt(1);
-        
+
             editText.setText(Integer.toString(rowData.value));
             editText.setImeActionLabel("Done", EditorInfo.IME_ACTION_DONE);
             editText.setEnabled(true);
