@@ -10,6 +10,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import ecig.app.ble.BluetoothLeService;
 
 /**
@@ -17,10 +25,13 @@ import ecig.app.ble.BluetoothLeService;
  *
  *
  * Provides code to help the UI
- *  Init the BLEService,
  *  Scan for devices,
  *  Pair w a device,
  *  Disconnect a device
+ *
+ * Scan: tells Android to scan, and schedules a stop callback after some TIMEOUT.
+ *      on each result, adds BluetoothDevice to a set of devices.
+ *      invokes stop callback with the BluetoothDevices which accumulated over time
  *
  */
 public class EmbreAgent {
@@ -30,6 +41,10 @@ public class EmbreAgent {
     BluetoothManager mBluetoothManager;
     BluetoothAdapter mBluetoothAdapter;
     BluetoothGatt mGatt;
+
+    // This is for implementing timeouts.
+    private static final ScheduledExecutorService worker =
+            Executors.newSingleThreadScheduledExecutor();
 
 
     boolean connected = false;
@@ -42,9 +57,7 @@ public class EmbreAgent {
     // This is the accelerometer service UUID of the SensorTag.
     static final String SERVICE_UUID = "F000AA10-0451-4000-B000-000000000000";
 
-    interface EmbreCB {
-        public void call(String[] args);
-    }
+    interface EmbreCB { public void call(Object[] args);}
 
     public final static String TAG = "ecig.app.EmbreAgent";
 
@@ -121,57 +134,49 @@ public class EmbreAgent {
             if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
                 connected = true;
                 Log.i(TAG, "Success.");
-                stopScanCB.call(new String[] {"CONNECTED"});
+                //connectCB.call(new String[] {"CONNECTED"});
             } else {
                 connected = false;
                 Log.i(TAG, "Failure.");
-                stopScanCB.call(new String[] {"DISCONNECTED"});
+                //connectCB.call(new String[] {"DISCONNECTED"});
             }
             state = newState;
         }
     };
 
 
-    // Device scan callback.
-    private final BluetoothAdapter.LeScanCallback mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
-        @Override
-        public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
-            String name = device.getName();
-            if (name != null) {
-                String logoutput = name + " " + device.toString();
-                Log.i(TAG, logoutput);
 
-                if (logoutput.equals("SensorTag 34:B1:F7:D1:35:03")) {
-                    // stop scanning
-                    scanForDevice(null);
+
+
+                    /*
+                    scanForDevices(null);
                     // connect to it http://blog.stylingandroid.com/bluetooth-le-part-4/
-                    mGatt = device.connectGatt(context, true, mGattCallback);
+                    mGatt = device.connectGatt(context, true, mGattCallback);*/
 
-                }
-            }
 
-        }
-    };
 
-    private EmbreCB stopScanCB;
-    // pass null to stop scanning
-    public void scanForDevice(EmbreCB onScanStop) {
-        if (onScanStop != null) {
-            if (mScanning) {
-                throw new RuntimeException("Attempt to scan while already scanning");
-            }
-            mScanning = true;
-            stopScanCB = onScanStop;
-            // TODO handle error in case scan doesn't start successfully
-            mBluetoothAdapter.startLeScan(mLeScanCallback);
-        } else {
-            if (mScanning) {
-                mScanning = false;
-                mBluetoothAdapter.stopLeScan(mLeScanCallback);
-                stopScanCB.call(new String[] {"FOUND"});
-            }
+    BluetoothAdapter.LeScanCallback mLeScanCallback;
+
+    /* Async function to start scanning for BLE devices, times out after delay milliseconds.
+    * Returns bool if started scanning successfully. */
+    public boolean startScan(BluetoothAdapter.LeScanCallback mLeScanCallback) {
+        this.mLeScanCallback = mLeScanCallback;
+
+        if (mScanning) {
+            throw new RuntimeException("Attempt to scan while already scanning");
         }
 
+        mScanning = true;
+
+        return mBluetoothAdapter.startLeScan(mLeScanCallback);
+
+    }
+
+    public void stopScan() {
+        if (mScanning) {
+            mScanning = false;
+            mBluetoothAdapter.stopLeScan(mLeScanCallback);
+        }
     }
 
     public boolean writeData(CData[] data) {

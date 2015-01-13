@@ -1,7 +1,7 @@
 package ecig.app;
 
-import android.content.Context;
-import android.support.v7.app.ActionBarActivity;
+import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -19,7 +19,7 @@ import ecig.app.EmbreAgent.CData;
 import ecig.app.EmbreAgent.CDataError;
 
 
-public class Intro extends ActionBarActivity {
+public class Intro extends Activity {
     public final static String TAG = "ecig.app.Intro";
 
     TextView textView;
@@ -76,29 +76,28 @@ public class Intro extends ActionBarActivity {
     private void initEmbreAgent() {
         embre = new EmbreAgent();
         embre.initialize(this);
-        final Context cxt = getApplicationContext();
-        embre.scanForDevice(new EmbreAgent.EmbreCB() {
+        /*embre.scanForDevice(new EmbreAgent.EmbreCB() {
             public void call(String[] args) {
                 String status = args[0];
                 if (status.equals("FOUND")) {
                     Intro.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(cxt, "Found", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(Intro.this, "Found", Toast.LENGTH_SHORT).show();
                         }
                     });
                 } else if (status.equals("CONNECTED")) {
                     Intro.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(cxt, "Connected", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(Intro.this, "Connected", Toast.LENGTH_SHORT).show();
                         }
                     });
                 } else if (status.equals("DISCONNECTED")) {
                     Intro.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(cxt, "Disconnected", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(Intro.this, "Disconnected", Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
@@ -106,7 +105,7 @@ public class Intro extends ActionBarActivity {
             }
         });
         // show loading wheel
-        Toast.makeText(cxt, "Scanning", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Scanning", Toast.LENGTH_SHORT).show();*/
     }
 
     /* </connecting fragment> */
@@ -277,8 +276,9 @@ public class Intro extends ActionBarActivity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_findembre) {
+            Intent i = new Intent(this, FindEmbre.class);
+            startActivity(i);
             return true;
         }
 
