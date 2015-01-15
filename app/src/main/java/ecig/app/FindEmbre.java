@@ -1,10 +1,12 @@
 package ecig.app;
 
+import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.view.Window;
@@ -12,6 +14,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.HashMap;
 
@@ -20,6 +23,7 @@ public class FindEmbre extends Activity {
     ListView listView;
     ArrayAdapter adapter;
     EmbreAgent embre;
+    public static final String TAG = "ecig.app.FindEmbre";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,7 +33,8 @@ public class FindEmbre extends Activity {
         setContentView(R.layout.activity_find_embre);
 
 
-        embre = new EmbreAgent();
+        MyApplication app = (MyApplication) getApplication();
+        embre = app.embre;
         embre.initialize(this);
 
         listView = (ListView) findViewById(R.id.listView);
@@ -37,15 +42,15 @@ public class FindEmbre extends Activity {
         adapter = new ArrayAdapter<BluetoothDevice>(this, android.R.layout.simple_list_item_1);
         listView.setAdapter(adapter);
 
-        listView.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                BluetoothDevice device = (BluetoothDevice) adapter.getItem(position);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            BluetoothDevice device = (BluetoothDevice) adapter.getItem(position);
+            MyApplication app = (MyApplication) getApplication();
+            app.embreMac = device.getAddress();
+            Toast t = Toast.makeText(getApplicationContext(), "Registered Embre", Toast.LENGTH_SHORT);
+            t.show();
+            FindEmbre.this.finish();
             }
         });
 
@@ -83,12 +88,6 @@ public class FindEmbre extends Activity {
 
     }
 
-    @Override
-    protected void onDestroy() {
-        embre.destroy();
-        super.onDestroy();
-    }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -123,7 +122,7 @@ public class FindEmbre extends Activity {
         boolean didItWork = embre.startScan(mLeScanCallback);
 
         if (!didItWork) {
-            // TODO error handling
+            Log.e(TAG, "gulp");
         } else {
             setProgressBarIndeterminateVisibility(true);
         }

@@ -3,9 +3,11 @@ package ecig.app;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
@@ -47,65 +49,29 @@ public class Intro extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
+
         setContentView(R.layout.activity_intro);
-        initEmbreAgent();
         initConnectingFragment();
         // TODO fix the pie.
+        MyApplication app = (MyApplication) getApplication();
+        embre = app.embre;
+        embre.initialize(this);
         //initPie();
         //initTabs();
         initNumericalTable();
     }
 
-    // I did this to prevent multiple embreagents from being created
-    // during screen rotation.
-    // but now I just prevented screen rotation so this isn't really utilized.
     @Override
-    protected void onDestroy() {
-        embre.destroy();
-        super.onDestroy();
+    protected void onStop() {
+        embre.cancelTask();
+        super.onStop();
     }
-
-
 
     private void initConnectingFragment() {
         textView = (TextView) findViewById(R.id.textView);
         connectingButton = (Button) findViewById(R.id.connectingButton);
 
-    }
-
-    private void initEmbreAgent() {
-        embre = new EmbreAgent();
-        embre.initialize(this);
-        /*embre.scanForDevice(new EmbreAgent.EmbreCB() {
-            public void call(String[] args) {
-                String status = args[0];
-                if (status.equals("FOUND")) {
-                    Intro.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(Intro.this, "Found", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                } else if (status.equals("CONNECTED")) {
-                    Intro.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(Intro.this, "Connected", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                } else if (status.equals("DISCONNECTED")) {
-                    Intro.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(Intro.this, "Disconnected", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
-
-            }
-        });
-        // show loading wheel
-        Toast.makeText(this, "Scanning", Toast.LENGTH_SHORT).show();*/
     }
 
     /* </connecting fragment> */
@@ -167,12 +133,41 @@ public class Intro extends Activity {
         reconfButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Reconfigure ecig or display ecig not connected.
-                if (embre.connected) {
-                    embre.writeData(Intro.this.data);
-                } else {
-                    // TODO make toast
+                String macAddr = ((MyApplication) Intro.this.getApplicationContext()).embreMac;
+                if (macAddr == null) {
+                    Intent i = new Intent(Intro.this, FindEmbre.class);
+                    startActivity(i);
+                    return;
                 }
+
+                editDoneButton.setEnabled(false);
+                reconfButton.setEnabled(false);
+                setProgressBarIndeterminateVisibility(true);
+
+
+                // Reconfigure ecig or display ecig not connected.
+                embre.writeData(Intro.this.data, macAddr, new EmbreAgent.WriteCB() {
+                    @Override
+                    public void call(final boolean success) {
+                        Intro.this.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                reconfButton.setEnabled(true);
+                                editDoneButton.setEnabled(true);
+                                setProgressBarIndeterminateVisibility(false);
+
+                                if (success) {
+                                    Toast t = Toast.makeText(Intro.this, "We seem to have finished writing", Toast.LENGTH_SHORT);
+                                    t.show();
+                                } else {
+                                    Toast t = Toast.makeText(Intro.this, "Error", Toast.LENGTH_SHORT);
+                                    t.show();
+                                }
+                            }
+                        });
+
+                    }
+                });
             }
         });
 
@@ -204,6 +199,7 @@ public class Intro extends Activity {
 
     void editNumTable() {
         reconfButton.setEnabled(false);
+
         editDoneButton.setText("Done");
 
 

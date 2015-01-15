@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
@@ -13,10 +14,13 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import ecig.app.ble.BluetoothLeService;
 
@@ -36,28 +40,24 @@ import ecig.app.ble.BluetoothLeService;
  */
 public class EmbreAgent {
 
-    Context context;
+    Context context = null;
 
     BluetoothManager mBluetoothManager;
     BluetoothAdapter mBluetoothAdapter;
-    BluetoothGatt mGatt;
+
 
     // This is for implementing timeouts.
     private static final ScheduledExecutorService worker =
             Executors.newSingleThreadScheduledExecutor();
 
-
-    boolean connected = false;
-    // BluetoothProfile.STATE_CONNECTED or BluetoothProfile.STATE_DISCONNECTED;
-    int state = BluetoothProfile.STATE_DISCONNECTED;
     private boolean mScanning = false;
-
-
 
     // This is the accelerometer service UUID of the SensorTag.
     static final String SERVICE_UUID = "F000AA10-0451-4000-B000-000000000000";
+    static final String ACCEL_PER_UUID = "F000AA13-0451-4000-B000-000000000000";
+    static final int SLEEP_MS = 150;
+    static final int WRITE_TIMEOUT = 7000;
 
-    interface EmbreCB { public void call(Object[] args);}
 
     public final static String TAG = "ecig.app.EmbreAgent";
 
@@ -101,9 +101,12 @@ public class EmbreAgent {
 
     }
 
+    /* Safe to call multiple times, will only truly initialize the first time */
     public void initialize(Context context) {
-        this.context = context;
-        initBluetoothAdapter();
+        if (this.context == null) {
+            this.context = context.getApplicationContext();
+            initBluetoothAdapter();
+        }
     }
 
     private void initBluetoothAdapter() {
@@ -111,6 +114,7 @@ public class EmbreAgent {
         // reference to BluetoothAdapter through BluetoothManager.
         mBluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
         mBluetoothAdapter = mBluetoothManager.getAdapter();
+
 
         // Checks if Bluetooth is supported on the device.
         if (mBluetoothAdapter == null) {
@@ -120,39 +124,10 @@ public class EmbreAgent {
         // Ensures Bluetooth is enabled. If not, displays a dialog requesting user permission to enable Bluetooth.
         if (!mBluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            enableBtIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(enableBtIntent);
         }
     }
-
-
-    private BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
-        // https://developer.android.com/reference/android/bluetooth/BluetoothGattCallback.html#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            super.onConnectionStateChange(gatt, status, newState);
-            // If connected, do callback
-            if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
-                connected = true;
-                Log.i(TAG, "Success.");
-                //connectCB.call(new String[] {"CONNECTED"});
-            } else {
-                connected = false;
-                Log.i(TAG, "Failure.");
-                //connectCB.call(new String[] {"DISCONNECTED"});
-            }
-            state = newState;
-        }
-    };
-
-
-
-
-
-                    /*
-                    scanForDevices(null);
-                    // connect to it http://blog.stylingandroid.com/bluetooth-le-part-4/
-                    mGatt = device.connectGatt(context, true, mGattCallback);*/
-
 
 
     BluetoothAdapter.LeScanCallback mLeScanCallback;
@@ -179,20 +154,153 @@ public class EmbreAgent {
         }
     }
 
-    public boolean writeData(CData[] data) {
-        return false;
+    public void cancelTask() {
+        if (task != null) {
+            task.cleanUp();
+        }
     }
 
-    public void destroy() {
 
-        if (mScanning) {
-            mBluetoothAdapter.stopLeScan(mLeScanCallback);
-            Log.i(TAG, "Cleaning up bluetooth: stop scan");
+    class WriteTask implements Runnable {
+        public String TAG = "ecig.app.EmbreAgent.WriteTask";
+        public CData[] data;
+        public String macAddress;
+        public WriteCB whenDone;
+
+        int state;
+        BluetoothGatt mGatt;
+        long startTime;
+
+        private BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
+            @Override
+            public void onReliableWriteCompleted (BluetoothGatt gatt, int status) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    written = true;
+                } else {
+                    // TODO handle error. for now the program just hangs.
+                    Log.e(TAG, "Write Failed. dont know what to do");
+                }
+            }
+
+            // https://developer.android.com/reference/android/bluetooth/BluetoothGattCallback.html#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)
+            @Override
+            public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+                super.onConnectionStateChange(gatt, status, newState);
+                // If connected, do callback
+                if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
+                    connected = true;
+                    Log.i(TAG, "connection state change: connected");
+                } else {
+                    connected = false;
+                    Log.i(TAG, "connection state change: " + newState);
+                }
+                state = newState;
+            }
+        };
+
+
+        boolean connected;
+        private boolean written = false;
+
+
+        private void waitTillConnected() throws TimeoutException {
+            while(!connected) {
+                try { Thread.sleep(20); } catch (InterruptedException e) {}
+                checkTimeout();
+            }
         }
-        if (this.connected) {
+
+        private void waitTillWritten() throws TimeoutException {
+            while(!written) {
+                try { Thread.sleep(20); } catch (InterruptedException e) {}
+                checkTimeout();
+            }
+        }
+
+        private void executeWriteSequence(byte b) throws TimeoutException {
+            waitTillConnected();
+            Log.i(TAG, "Connected");
+            written = false;
+
+            BluetoothGattCharacteristic characteristic =
+                    new BluetoothGattCharacteristic(UUID.fromString(ACCEL_PER_UUID),
+                            BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE,
+                            BluetoothGattCharacteristic.PERMISSION_READ | BluetoothGattCharacteristic.PERMISSION_WRITE);
+            byte[] val = new byte[1];
+            val[0] = b;
+            characteristic.setValue(val);
+
+            Log.i(TAG, "Begin write transaction");
+            mGatt.beginReliableWrite();
+            mGatt.writeCharacteristic(characteristic);// TODO fix
+            mGatt.executeReliableWrite();
+            Log.i(TAG, "End write transaction");
+            waitTillWritten();
+            Log.i(TAG, "Written");
+        }
+
+        private void checkTimeout() throws TimeoutException{
+            long nowTime = System.currentTimeMillis();
+            if ((nowTime - startTime) > WRITE_TIMEOUT)
+                throw new TimeoutException();
+        }
+
+        public void cleanUp() {
+            if(mGatt != null)
+                mGatt.disconnect();
+            EmbreAgent.this.task = null;
+            whenDone.call(false);
+        }
+
+        @Override
+        public void run() {
+            startTime = System.currentTimeMillis();
+            try {
+                BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(macAddress);
+
+                mGatt = device.connectGatt(context, true, mGattCallback);
+                Log.i(TAG, "Issued connect call");
+
+                executeWriteSequence((byte) 101);
+                try {Thread.sleep(SLEEP_MS);} catch (InterruptedException e) {}
+                for (int i = 0; i < 6; i++) {
+                    executeWriteSequence((byte) data[i].value);
+                    try {
+                        Thread.sleep(SLEEP_MS);
+                    } catch (InterruptedException e) {
+                    }
+                }
+            } catch (TimeoutException e) {
+                mGatt.disconnect();
+                EmbreAgent.this.task = null;
+                whenDone.call(false);
+                return;
+            }
             mGatt.disconnect();
-            Log.i(TAG, "Cleaning up bluetooth: disconnect");
+            EmbreAgent.this.task = null;
+            whenDone.call(true);
+
+            return;
         }
+
     }
+
+    interface WriteCB { public void call(boolean success); }
+    volatile WriteTask task;
+    // Given the data, macAddress, timeout in ms, and done callback,
+    // returns immediately and calls the callback when done.
+    public void writeData(CData[] data, String macAddress, WriteCB whenDone) {
+        if (task != null) {
+            throw new RuntimeException("There is still a task running");
+        }
+        task = new WriteTask();
+        task.data = data;
+        task.macAddress = macAddress;
+        task.whenDone = whenDone;
+
+        worker.submit(task);
+    }
+
+
 }
 
