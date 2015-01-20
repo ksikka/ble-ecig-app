@@ -363,7 +363,6 @@ public class EmbreAgent {
 
                 try {Thread.sleep(SLEEP_MS);} catch (InterruptedException e) {}
                 for (int i = 0; i < 6; i++) {
-                    //data[i].value = data[i].value == 0 ? 30 : data[i].value;
                     executeWriteSequence((byte) data[i].value);
                     executeReadVerification((byte) data[i].value);
                     try {
