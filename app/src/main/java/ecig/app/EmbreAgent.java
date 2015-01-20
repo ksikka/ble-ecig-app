@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
@@ -14,6 +15,7 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
@@ -56,7 +58,7 @@ public class EmbreAgent {
     static final String SERVICE_UUID = "F000AA10-0451-4000-B000-000000000000";
     static final String ACCEL_PER_UUID = "F000AA13-0451-4000-B000-000000000000";
     static final int SLEEP_MS = 150;
-    static final int WRITE_TIMEOUT = 7000;
+    static final int WRITE_TIMEOUT = 70000;
 
 
     public final static String TAG = "ecig.app.EmbreAgent";
@@ -173,12 +175,21 @@ public class EmbreAgent {
 
         private BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
             @Override
-            public void onReliableWriteCompleted (BluetoothGatt gatt, int status) {
+            public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    discovered = true;
+                } else {
+                    // TODO handle error. for now the program just hangs.
+                    Log.e(TAG, "Discovery Failed. dont know what to do " + status);
+                }
+            }
+            @Override
+            public void onCharacteristicWrite (BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     written = true;
                 } else {
                     // TODO handle error. for now the program just hangs.
-                    Log.e(TAG, "Write Failed. dont know what to do");
+                    Log.e(TAG, "Write Failed. dont know what to do " + status);
                 }
             }
 
@@ -196,11 +207,21 @@ public class EmbreAgent {
                 }
                 state = newState;
             }
+            @Override
+            public void onCharacteristicRead (BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    read = true;
+                    byteRead = characteristic.getValue()[0];
+                } else {
+                    Log.e(TAG, "Read Failed. Don't know what to do");
+                }
+            }
         };
 
 
-        boolean connected;
-        private boolean written = false;
+        volatile boolean connected = false;
+        private volatile boolean written = false;
+        private volatile boolean discovered = false;
 
 
         private void waitTillConnected() throws TimeoutException {
@@ -216,67 +237,147 @@ public class EmbreAgent {
                 checkTimeout();
             }
         }
+        private void waitTillRead() throws TimeoutException {
+            while(!read) {
+                try { Thread.sleep(20); } catch (InterruptedException e) {}
+                checkTimeout();
+            }
+        }
+        private void waitTillDiscovered() throws TimeoutException {
+            while(!discovered) {
+                try { Thread.sleep(20); } catch (InterruptedException e) {}
+                checkTimeout();
+            }
+        }
 
         private void executeWriteSequence(byte b) throws TimeoutException {
             waitTillConnected();
             Log.i(TAG, "Connected");
             written = false;
 
-            BluetoothGattCharacteristic characteristic =
-                    new BluetoothGattCharacteristic(UUID.fromString(ACCEL_PER_UUID),
-                            BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE,
-                            BluetoothGattCharacteristic.PERMISSION_READ | BluetoothGattCharacteristic.PERMISSION_WRITE);
+            BluetoothGattCharacteristic characteristic = mChar;
+                    //new BluetoothGattCharacteristic(UUID.fromString(ACCEL_PER_UUID.toLowerCase()),
+                    //        BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE,
+                    //        BluetoothGattCharacteristic.PERMISSION_READ | BluetoothGattCharacteristic.PERMISSION_WRITE);
             byte[] val = new byte[1];
             val[0] = b;
             characteristic.setValue(val);
 
-            Log.i(TAG, "Begin write transaction");
-            mGatt.beginReliableWrite();
-            mGatt.writeCharacteristic(characteristic);// TODO fix
-            mGatt.executeReliableWrite();
-            Log.i(TAG, "End write transaction");
+            Log.i(TAG, "Begin write");
+            mGatt.writeCharacteristic(characteristic);
+            Log.i(TAG, "Waiting for callback");
             waitTillWritten();
             Log.i(TAG, "Written");
         }
 
+        // read,byteRead as in past tense
+        volatile boolean read = false;
+        volatile byte byteRead;
+        private void executeReadVerification(byte b) throws TimeoutException {
+            waitTillConnected();
+            Log.i(TAG, "Connected");
+            read = false;
+
+            BluetoothGattCharacteristic characteristic = mChar;
+
+            Log.i(TAG, "Reading");
+
+            characteristic.setValue((byte[])null);
+            mGatt.readCharacteristic(characteristic);
+
+
+            waitTillRead();
+            Log.i(TAG, "Read");
+
+            if (byteRead !=  b) {
+                Log.e(TAG, String.format("Problem. Expected %d, found %d instead.", byteRead));
+            }
+
+        };
+
         private void checkTimeout() throws TimeoutException{
             long nowTime = System.currentTimeMillis();
-            if ((nowTime - startTime) > WRITE_TIMEOUT)
+            if ((nowTime - startTime) > WRITE_TIMEOUT) {
+                Log.e(TAG, "Timed out.");
                 throw new TimeoutException();
+            }
+
         }
 
         public void cleanUp() {
-            if(mGatt != null)
+            if(mGatt != null) {
                 mGatt.disconnect();
+                mGatt.close();
+            }
+
             EmbreAgent.this.task = null;
             whenDone.call(false);
         }
 
+        public boolean findCharacteristic() throws TimeoutException {
+            mChar = null;
+            Log.i(TAG, "Discovering services");
+            mGatt.discoverServices();
+            waitTillDiscovered();
+
+            Log.i(TAG, "Done.");
+            List<BluetoothGattService> services = mGatt.getServices();
+
+            Log.i(TAG, "Iterating");
+            for (BluetoothGattService s : services) {
+                Log.i(TAG, "Service: " + s.getUuid().toString().toLowerCase());
+                if (s.getUuid().toString().toLowerCase().equals(SERVICE_UUID.toLowerCase())) {
+                    Log.i(TAG, "ACCEL SERVICE");
+                    for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
+                        Log.i(TAG, "Char: " + c.getUuid().toString());
+                        if (c.getUuid().toString().equals(ACCEL_PER_UUID.toLowerCase())) {
+                            /*Log.e(TAG, "Found you.");
+                            Log.e(TAG, Integer.toString(c.getProperties()));
+                            Log.e(TAG, Integer.toString(c.getPermissions()));*/
+                            mChar = c;
+                        }
+                    }
+                }
+            }
+            return mChar != null;
+        }
+
+        BluetoothGattCharacteristic mChar;
         @Override
         public void run() {
             startTime = System.currentTimeMillis();
             try {
                 BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(macAddress);
 
+                Log.i(TAG, "Issuing connect call");
                 mGatt = device.connectGatt(context, true, mGattCallback);
-                Log.i(TAG, "Issued connect call");
+
+                Log.i(TAG, "Waiting till connected");
+                waitTillConnected();
+
+                findCharacteristic();
+
 
                 executeWriteSequence((byte) 101);
+                executeReadVerification((byte) 101);
+
                 try {Thread.sleep(SLEEP_MS);} catch (InterruptedException e) {}
                 for (int i = 0; i < 6; i++) {
+                    //data[i].value = data[i].value == 0 ? 30 : data[i].value;
                     executeWriteSequence((byte) data[i].value);
+                    executeReadVerification((byte) data[i].value);
                     try {
                         Thread.sleep(SLEEP_MS);
                     } catch (InterruptedException e) {
                     }
                 }
             } catch (TimeoutException e) {
-                mGatt.disconnect();
+                mGatt.disconnect(); mGatt.close();
                 EmbreAgent.this.task = null;
                 whenDone.call(false);
                 return;
             }
-            mGatt.disconnect();
+            mGatt.disconnect(); mGatt.close();
             EmbreAgent.this.task = null;
             whenDone.call(true);
 
